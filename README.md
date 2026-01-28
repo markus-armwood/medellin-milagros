@@ -1,4 +1,4 @@
-# medellin-baby-making
+# medellin-milagros
 
 End-to-end data engineering pipeline using Colombian hospital birth data (DANE).
 
