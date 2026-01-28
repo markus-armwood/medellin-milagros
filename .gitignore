@@ -5,3 +5,7 @@ __pycache__/
 raw/
 processed/
 .DS_Store
+
+# Local data
+data/*
+!data/.gitkeep
