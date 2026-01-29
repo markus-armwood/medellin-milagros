@@ -106,28 +106,93 @@ def main() -> None:
     # ----- Validate raw exists -----
     if not raw_file.exists():
         raise FileNotFoundError(f"Raw XLSX not found: {raw_file}")
+        # raise stops program and returns the error
 
-    # ----- Read Excel (first sheet by default) -----
+    # ----- Read Excel  -----
     df = pd.read_excel(raw_file, sheet_name="Nacimientos")
+    # (location, which sheet to read)
 
     # ----- Standardize column names -----
     df.columns = [clean_col(c) for c in df.columns]
+    # dr.columns is the list-like object that holds all column names of the DataFrame.
+    # c is the index that lets us know which entry we're on for df.column
+    # puts the column name at the entry of index c into clean_col function defined above
+    # the list of clean_col function outputs is an anonymous temporary list object...
+    # ...stored in memory.  This is filled up with the results of the list as it is being..
+    #... iterated through in clean_col, then sets dr.columns equal to the values of the anonymous...
+    #... temporary list when the loop has completed.
 
     # ----- Standardize values -----
     # 1) Trim string-like columns
     for c in df.columns:
+    # loop through each column name at the index c
         if df[c].dtype == "object":
+        # at column (aka Series) index c of this DataFrame (aka Table)
+        # df[c] just takes the column/Series of the DataFrame/Table specifically at index c 
+        # This part of the code checks if the Data types of the values to see if it an object
+        # object is pandas signal that the values in the column are text-like..
+        # ...and we can only perform string operations on text.
+        # We check if it's an object because .strip() only works on strings mixed values (strings + blanks)...
+        # ...sometimes numbers stored as text
+        # ABOUT OBJECTS in DataFrames:
+            # Objects behave like strings but are not guaranteed to be strings
+            # Objects could be:
+                # strings ("FEMENINO")
+                # mixed strings + blanks
+                # numbers stored as text ("34")
+                # mixed types ("34", None, " ")
+            # the .str below ensures that all values in the DataFrame are stored as strings and not a mixture  
+            # with an object a value of NaN is a float and None is and Object, this is inconsistent 
+            # with dtype string, null/missing values are stored as <NA> which is consistent.
+
             df[c] = df[c].astype("string").str.strip()
+            # .astype("string") converts values to pandas nullable string dtype...
+            #...Preserves <NA> cleanly and ensures .str methods behave consistently
+            # string values in DataFrame that get converted to <NA>:
+                # None,NaN / numpy.nan, pd.NA (already missing)
+            
+            # string values in DataFrame that DO NOT get converted to <NA>:
+                # These stay as valid strings unless you explicitly convert them:
+                # "" (empty string)
+                # " " (spaces)
+                # "\t", "\n" (whitespace)
+                # "NA", "null", "None" (literal text)    
+
 
     # 2) Empty strings -> NA
     df = df.replace({"": pd.NA})
+        # The dictionary {"": pd.NA} means:
+            # Find: "" (empty string)
+            # Replace with: pd.NA (pandas missing value)
+        # The dictionary is used as input into the .replace only to show that this value change was...
+        #... a part of the Data Contract and not an ad hoc fix.
+
+
 
     # 3) If there are any "Unnamed: x" columns (common in Excel), drop them
+        # When pandas reads Excel (or CSV) files, it auto-generates column names...
+        #...for columns that don’t have a header. Those generated names look like
+            # Examples: 
+                # "Unnamed: 0"
+                # "Unnamed: 1"
+                # "Unnamed: 2"
+            #After clean_col function, these become...
+                # 'unnamed_0'
+                # 'unnamed_1'
+                # 'unnamed_2' 
+            # Now we can search for columns that start with "unnamed" by using .startwith to delete them...
+            #... since they hold now values that we want
+
     unnamed_cols = [c for c in df.columns if c.startswith("unnamed")]
     if unnamed_cols:
         df = df.drop(columns=unnamed_cols)
+    # so this loops through the dataframe columns at index c and finds columns that begin with unnamed...
+    #...then stores them in a list called unnamed_cols.  then checks if that unnamed_cols list exists...
+    #...if it does then it drops all columns in the dataframe that match the values in the unnamed_cols list
 
 
+
+#################### START HERE TOMORROW 30 JAN 2026##########
 
     # ----- Silver type hardening -----
 
