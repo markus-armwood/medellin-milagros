@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: milagros-postgres
+    environment:
+      POSTGRES_DB: milagros
+      POSTGRES_USER: milagros
+      POSTGRES_PASSWORD: milagros
+    ports:
+      - "5433:5432"
+    volumes:
+      - milagros_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U milagros -d milagros"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  milagros_pgdata:
