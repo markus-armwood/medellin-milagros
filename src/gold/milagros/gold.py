@@ -74,6 +74,42 @@ def main() -> None:
     )
     write_parquet(weight_summary, gold_dir / "weight_summary")
 
+     # ---- Gold Table 4: Mother age bands
+    mother_age_bands = (
+        df.withColumn(
+            "mother_age_band",
+            F.when(F.col("edad_madre") < 20, "<20")
+             .when((F.col("edad_madre") >= 20) & (F.col("edad_madre") < 30), "20-29")
+             .when((F.col("edad_madre") >= 30) & (F.col("edad_madre") < 40), "30-39")
+             .when(F.col("edad_madre") >= 40, "40+")
+             .otherwise("unknown")
+        )
+        .groupBy("mother_age_band")
+        .agg(F.count("*").alias("births"))
+        .orderBy(F.desc("births"))
+    )
+
+    write_parquet(mother_age_bands, gold_dir / "mother_age_bands")
+
+    # ---- Gold Table 5: Father age bands
+    father_age_bands = (
+        df.where(F.col("edad_padre").isNotNull())
+          .withColumn(
+              "father_age_band",
+              F.when(F.col("edad_padre") < 20, "<20")
+               .when((F.col("edad_padre") >= 20) & (F.col("edad_padre") < 30), "20-29")
+               .when((F.col("edad_padre") >= 30) & (F.col("edad_padre") < 40), "30-39")
+               .when((F.col("edad_padre") >= 40) & (F.col("edad_padre") < 50), "40-49")
+               .when(F.col("edad_padre") >= 50, "50+")
+               .otherwise("unknown")
+          )
+          .groupBy("father_age_band")
+          .agg(F.count("*").alias("births"))
+          .orderBy(F.desc("births"))
+    )
+
+    write_parquet(father_age_bands, gold_dir / "father_age_bands")
+
     # ---- Success marker
     success = gold_dir / "_SUCCESS"
     success.write_text("ok\n", encoding="utf-8")

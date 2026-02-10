@@ -8,3 +8,5 @@ def test_gold_outputs_exist_for_ingest_date():
     assert (base / "births_by_sexo").exists(), "Missing births_by_sexo"
     assert (base / "weight_summary").exists(), "Missing weight_summary"
     assert (base / "_SUCCESS").exists(), "Missing _SUCCESS marker"
+    assert (base / "mother_age_bands").exists(), "Missing mother_age_bands"
+    assert (base / "father_age_bands").exists(), "Missing father_age_bands"
