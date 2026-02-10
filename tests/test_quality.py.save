@@ -1,0 +1,5 @@
+^X
+XX
+def test_true():
+    # placeholder so pytest always runs
+    assert True

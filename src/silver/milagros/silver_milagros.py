@@ -191,24 +191,76 @@ def main() -> None:
     #...if it does then it drops all columns in the dataframe that match the values in the unnamed_cols list
 
 
-
-#################### START HERE TOMORROW 30 JAN 2026##########
-
     # ----- Silver type hardening -----
+    # Hardening means taking messy raw data and enforcing strict types and rules so invalid values don’t...
+    #... pass through unnoticed and cause incorrect calculations or misleading results later in the pipeline.
 
     # Integers
     int_cols = ["ano", "periodo_de_reporte"]
+    # make a list of all the columns with integer values
     for c in int_cols:
+    # loop through every column in int_cols
         if c in df.columns:
+        # check if the dataframe contains the columns
+        # Prevents crashes if:
+            #The dataset version changes
+            # A column is renamed
+            # You reuse this logic on another dataset
             df[c] = pd.to_numeric(df[c], errors="coerce").astype("Int64")
+            # .to_numeric does these things in this order:
+                # 1st->Try to parse each value as a number
+                # 2nd->Invalid values → NaN
+                # 3rd->Column becomes float temporarily
+                #4th->.astype("Int64") finalizes schema
+            # Think of this process in this line of code as using .to_numeric() is a sanitizer...
+            #...and astype() is a schema enforcer
+
+            # df[c] 
+                # selects one column from the DataFrame which returns a Series (1-D array of values).
+            # pd.to_numeric(df[c], errors="coerce") 
+                # Attempts to convert every value to a number via .to_numeric()
+                # Conversions:
+                    # "2022" to 2022
+                    # "1" to 1
+                    # " " to NaN
+                    # "ND" to NaN
+                    # "abc" to NaN
+            # use errors="coerce" because of the following:
+                # So invalid values do not crash the pipeline
+                # So invalid values become missing instead of corrupting the dataset
+                # CAUTION--->This step may temporarily produce a float series because NaN is a float...
+                    #...to fix this we do .astype("Int64") in the next step
+            # .astype("Int64"):
+                # Converts the numeric series to pandas’ nullable integer type.
+                # Replaces:
+                    # valid numbers → integers
+                    # invalid values stored as NaN ffrom .tu_numeric() <NA>
+                # Why this matters:
+                    # Preserves integer semantics
+                    # Allows missing values
+                    # Works cleanly with SQL and Parquet
+
 
     # Nullable integer ages
+    # this is the same logic as the integer hardening but for different reasons
+    # We separate them for the following reasons:
+        # Ages have different business meaning
+        # They often require sanity checks (e.g. 10–60)
+        # They may later be:
+        # bucketed (age groups)
+        # filtered
+        # aggregated
     age_cols = ["edad_madre", "edad_padre"]
     for c in age_cols:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce").astype("Int64")
 
     # Key categoricals
+    #   This step enures the following:
+        # consistent text handling
+        # nullable values such as <NA>
+        # safe .str operations
+        # clean Parquet and SQL behavior
     cat_cols = [
         "sexo",
         "nivel_educativo_madre",
@@ -220,11 +272,14 @@ def main() -> None:
             df[c] = df[c].astype("string")
 
 
+#################### START HERE NEXT ##########
 
 
  # ----- Silver contract checks (Step 4.10) -----
 
     # Step 10.1: Required columns
+    # as defined in the Data Contract
+    # These columns are required to define a "Nacimiento"
     required_cols = [
         "ano",
         "periodo_de_reporte",
@@ -235,13 +290,25 @@ def main() -> None:
         "edad_padre",
     ]
     missing = [c for c in required_cols if c not in df.columns]
+    # This is a schema validation guardrail, So the Silver layer fails fast instead of silently producing bad data.
+
     if missing:
         raise ValueError(f"Missing required columns in Silver: {missing}")
 
     # Step 10.2: Sanity checks
     if "edad_madre" in df.columns:
+    # Only validate the column if it’s present. This prevents crashes if the source file changes.
         s = df["edad_madre"].dropna()
+        # .dropna() drops all null values
         if ((s < 10) | (s > 60)).any():
+            # This is an element wise comparison that checks all values to see if they are less than 10 or greater than 60...
+            #... and stores all resulting boolean values in a list called a Boolean Mask.  We want to use a Python Conditional IF statement...
+            #... to check if there exists at least one value in the panda Series/Table Column "s" ...
+            #... that is less than 10 or greater than 60.  In order to return one boolean as "true" in response....
+            #... to the IF statement to determine if we go into the logic containted with the IF condition, ...
+            #... we need to use the "( ).any" or "( ).all". 
+            # Must use | not "or" because | expects array of values, and "or" is expecting a number since... 
+            #...it's a scalar comparison
             raise ValueError("edad_madre outside expected range (10–60)")
 
     if "ano" in df.columns:
@@ -251,17 +318,23 @@ def main() -> None:
 
 
 
-
-
     # ----- Write Silver Parquet -----
     df.to_parquet(out_parquet, index=False)
+    # DataFrames create their first column of indexes that auto increment starting at 0, to elemenat this...
+    #... we put index=False as the second argument; otherwise our first column would be of indexes (0,1,2,3...)
+
     success_marker.touch()
 
     # ----- Minimal verification logs -----
     print(f"[silver] rows={len(df)} cols={len(df.columns)}")
+    # Log number of rows and columns to verify dataset size and schema shape
     print(f"[silver] wrote={out_parquet}")
+    # Log the Parquet output path to confirm where the Silver data was written
     print(f"[silver] wrote={success_marker}")
+    # Log the _SUCCESS marker path to confirm completion signaling
     print("[silver] columns:", df.columns.tolist())
+    # Print final column names to verify schema correctness after transformations
+
 
 
 if __name__ == "__main__":
